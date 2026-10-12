@@ -136,6 +136,7 @@ $$;
 
 -- Ownership: ALTER OWNER requires membership in the new owner for non-superusers
 -- (Supabase `postgres`). Grant temporarily, transfer, revoke, so no role stays a member.
+-- Any future ALTER FUNCTION ... OWNER TO crm_owner must repeat this grant/revoke pair.
 grant crm_owner to current_user;
 -- PG17 ALTER FUNCTION ... OWNER TO needs CREATE on the schema for the new owner; granted only for the transfer.
 grant create on schema public to crm_owner;
