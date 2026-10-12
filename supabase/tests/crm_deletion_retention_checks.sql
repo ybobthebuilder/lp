@@ -16,6 +16,12 @@ do $$ begin
   assert not has_function_privilege('anon', 'public.delete_contact(text)', 'execute'), 'anon can delete';
   assert not has_function_privilege('authenticated', 'public.record_unsubscribe(text,text)', 'execute'), 'auth can unsubscribe';
   assert not has_function_privilege('anon', 'public.purge_inactive_contacts()', 'execute'), 'anon can purge';
+  -- Full matrix: neither anon nor authenticated may execute any of the 3 functions.
+  assert not exists (select 1 from unnest(array['public.delete_contact(text)',
+      'public.purge_inactive_contacts()', 'public.record_unsubscribe(text,text)']) f,
+      unnest(array['anon', 'authenticated']) r
+    where has_function_privilege(r, f, 'execute')), 'anon/authenticated can execute a deletion function';
+  assert has_function_privilege('service_role', 'public.delete_contact(text)', 'execute'), 'service_role cannot delete';
   if has_schema_privilege('cron', 'usage') then
     assert (select count(*) from cron.job where jobname = 'crm_purge_inactive_contacts'
              and schedule = '17 4 1 * *') = 1, 'cron job missing';

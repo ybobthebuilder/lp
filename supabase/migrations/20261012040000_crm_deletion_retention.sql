@@ -134,6 +134,16 @@ begin
 end;
 $$;
 
+-- ADR L48: revoke before grant; service_role only. Must run BEFORE the ownership
+-- transfer: once crm_owner owns the functions, REVOKE by a non-owner is a silent no-op
+-- and Supabase default privileges (EXECUTE to anon/authenticated) would remain.
+revoke execute on function public.delete_contact(text)           from public, anon, authenticated;
+revoke execute on function public.purge_inactive_contacts()      from public, anon, authenticated;
+revoke execute on function public.record_unsubscribe(text, text) from public, anon, authenticated;
+grant execute on function public.delete_contact(text)            to service_role;
+grant execute on function public.purge_inactive_contacts()       to service_role;
+grant execute on function public.record_unsubscribe(text, text)  to service_role;
+
 -- Ownership: ALTER OWNER requires membership in the new owner for non-superusers
 -- (Supabase `postgres`). Grant temporarily, transfer, revoke, so no role stays a member.
 -- Any future ALTER FUNCTION ... OWNER TO crm_owner must repeat this grant/revoke pair.
@@ -146,13 +156,19 @@ alter function public.record_unsubscribe(text, text)    owner to crm_owner;
 revoke crm_owner from current_user;
 revoke create on schema public from crm_owner;
 
--- ADR L48: revoke before grant; service_role only.
-revoke execute on function public.delete_contact(text)           from public, anon, authenticated;
-revoke execute on function public.purge_inactive_contacts()      from public, anon, authenticated;
-revoke execute on function public.record_unsubscribe(text, text) from public, anon, authenticated;
-grant execute on function public.delete_contact(text)            to service_role;
-grant execute on function public.purge_inactive_contacts()       to service_role;
-grant execute on function public.record_unsubscribe(text, text)  to service_role;
+-- Fail the migration if anon/authenticated can still execute any deletion function.
+do $$
+declare f text;
+begin
+  foreach f in array array['public.delete_contact(text)', 'public.purge_inactive_contacts()',
+                           'public.record_unsubscribe(text,text)'] loop
+    if has_function_privilege('anon', f, 'execute')
+       or has_function_privilege('authenticated', f, 'execute') then
+      raise exception 'anon/authenticated can execute %', f using errcode = '42501';
+    end if;
+  end loop;
+end;
+$$;
 
 -- ADR L39: monthly job, day 1 at 04:17 database time (UTC). Idempotent.
 do $$
