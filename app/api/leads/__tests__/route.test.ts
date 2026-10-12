@@ -144,4 +144,30 @@ describe("POST /api/leads", () => {
     await POST(req({ ...valid, utm_source: "  ", utm_medium: "", utm_campaign: "", utm_content: "" }));
     expect(utmOf()).toEqual({});
   });
+
+  // TASK-T7f: only PostgREST error code LP001 maps to the invalid-input response.
+  const pgError = (code: string, status = 400) =>
+    new Response(JSON.stringify({ code, details: null, hint: null, message: "capture_lead: identifiers belong to different contacts" }), { status, headers: { "Content-Type": "application/json" } });
+
+  it("LP001 (email and whatsapp of different contacts) returns the same response as invalid input", async () => {
+    const invalid = await POST(req({ ...valid, idempotency_key: "x" }));
+    fetchMock.mockResolvedValue(pgError("LP001"));
+    const refused = await POST(req(valid));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    expect(refused.status).toBe(invalid.status);
+    expect(refused.status).toBe(400);
+    expect(await refused.json()).toEqual(await invalid.json());
+  });
+
+  it.each(["P0001", "22023", "40001", "lp001", "LP0011"])("other error code %s stays 502", async (code) => {
+    fetchMock.mockResolvedValue(pgError(code));
+    const res = await POST(req(valid));
+    expect(res.status).toBe(502);
+    expect(await res.json()).toEqual({ error: "Não foi possível enviar agora" });
+  });
+
+  it("non-JSON error body stays 502", async () => {
+    fetchMock.mockResolvedValue(new Response("<html>bad gateway</html>", { status: 502 }));
+    expect((await POST(req(valid))).status).toBe(502);
+  });
 });
