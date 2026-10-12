@@ -56,7 +56,8 @@ language plpgsql set search_path = '' as $$
 begin
   raise exception 'append-only table %: % not allowed', tg_table_name, tg_op
     using errcode = '42501';
-end $$;
+end;
+$$;
 
 create trigger consents_append_only before update or delete on public.consents
   for each row execute function public.block_update_delete();
@@ -145,7 +146,8 @@ begin
                              'utm', coalesce(p_utm, '{}'::jsonb)));
 
   return v_contact_id;
-end $$;
+end;
+$$;
 
 -- ADR L48: revoke before grant.
 revoke execute on function public.capture_lead(text, text, text, text, jsonb, text)
