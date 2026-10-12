@@ -26,7 +26,7 @@
 ### Consent (LGPD)
 - Separate, explicit consent per channel: `email` and `whatsapp`. Nothing pre-checked.
 - Each consent stores the date/time and the `text_version` of the consent text shown.
-- Required consent (PROPOSED, pending Fonseca): `email` is required, because the lead magnet is delivered by email. `whatsapp` is optional; if a WhatsApp number is provided, its own consent is required.
+- Required consent (decided by Fonseca on 2026-10-12): both `email` and `whatsapp` are required fields, and both consent checkboxes are required.
 - The API rejects a submission without the required consent.
 
 ### Stages and score
@@ -50,5 +50,5 @@
 
 ## Consequences
 - TASK-T7b creates the migration and must prove that a call to `/rest/v1/rpc/capture_lead` with the publishable key is refused (401/403) and one with the secret key is accepted, on a test project with synthetic data.
-- TASK-T7c changes `/api/leads` to validate email and WhatsApp (E.164, `+55`), require consent per channel and call `capture_lead`; adds `.env.example` with variable names only.
+- TASK-T7c changes `/api/leads` to require and validate email and WhatsApp (E.164, `+55`), require both consents and call `capture_lead`; adds `.env.example` with variable names only.
 - The form with WhatsApp returns together with the privacy page (TASK-T6a) and TASK-T7c.
