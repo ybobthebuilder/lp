@@ -13,24 +13,25 @@ Projeto → **Firewall** → **Configure** → **+ New Rule**:
 - **Then:** `Rate Limit`
   - Strategy: **Fixed Window**
   - Time Window: **60s**
-  - Request Limit: **5**
+  - Request Limit: **10**  (decisão do Fonseca, 2026-10-12: 10/min bloqueando)
   - Key: **IP**
-  - Action: **Default (429)**  (opcional: começar com **Log** por 1 dia para observar)
+  - Action: **Deny / Default (429)** — bloquear de verdade, **não** usar Log
 - **Save Rule** → **Review Changes** → **Publish**.
 
 Obs.: o publish aplica ao deployment de produção. O 429 chega ao front como 4xx; `submitLeadOnce` não repete 4xx e mostra "Não foi possível enviar agora".
 
 ## Verificação
-Depois de publicar, rodar contra a URL de produção/preview protegida (dados sintéticos; o payload abaixo usa o honeypot preenchido, então **nada é gravado no banco**):
+Rodar **na URL de produção `*.vercel.app`, antes de ligar o domínio** (o publish aplica a regra à produção; se vale no preview é UNKNOWN). O payload usa o honeypot preenchido: a rota responde `200 {ok:true}` sem chamar capture_lead, então **nada é gravado no 1lp**.
 
 ```bash
-URL=https://<dominio>/api/leads
-for i in $(seq 1 8); do
+URL=https://<projeto>.vercel.app/api/leads
+for i in $(seq 1 12); do
+  printf "%s " "$i"
   curl -s -o /dev/null -w "%{http_code}\n" -X POST "$URL" \
     -H 'Content-Type: application/json' -d '{"hp_field":"check"}'
 done
 ```
-Esperado: as 5 primeiras `200`, as seguintes `429`. Em Firewall → overview, selecionar a regra e ver o tráfego bloqueado.
+Esperado: `200` nas 10 primeiras, `429` a partir da 11ª. Em Firewall → overview, selecionar a regra e ver o tráfego bloqueado.
 
 ## Limites conhecidos
 - Contadores são por região (pode passar do limite se o tráfego vier de várias regiões).
