@@ -145,6 +145,28 @@ describe("POST /api/leads", () => {
     expect(utmOf()).toEqual({});
   });
 
+  it("honeypot filled: returns the normal success response and does not call capture_lead", async () => {
+    const res = await POST(req({ ...valid, hp_field: "http://spam.example" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("honeypot filled with otherwise invalid data: still success, no call", async () => {
+    const res = await POST(req({ hp_field: "x" }));
+    expect(res.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("honeypot empty or whitespace: normal flow calls capture_lead", async () => {
+    okRpc();
+    for (const hp of ["", "   "]) {
+      const res = await POST(req({ ...valid, hp_field: hp }));
+      expect(res.status).toBe(200);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
+
   // TASK-T7f: only PostgREST error code LP001 maps to the invalid-input response.
   const pgError = (code: string, status = 400) =>
     new Response(JSON.stringify({ code, details: null, hint: null, message: "capture_lead: identifiers belong to different contacts" }), { status, headers: { "Content-Type": "application/json" } });

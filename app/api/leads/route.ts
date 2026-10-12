@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { CONSENT_TEXT_VERSION } from "../../consent-version";
 import { captureLead } from "../../supabase-capture";
+import { HONEYPOT_FIELD } from "../../honeypot";
 
 // Same rule as the DB check on contacts.whatsapp (supabase/migrations/20261012030000_crm_core.sql:13).
 export const DB_WHATSAPP_RE = /^\+55\d{10,11}$/;
@@ -25,6 +26,9 @@ const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
+  // T7g honeypot: a filled hidden field means a bot. Return the normal success response
+  // (bot learns nothing) and never call capture_lead. Nothing is logged.
+  if (str(body?.[HONEYPOT_FIELD])) return NextResponse.json({ ok: true });
   const email = str(body?.email);
   const whatsapp = normalizeWhatsapp(str(body?.whatsapp));
   const idempotencyKey = str(body?.idempotency_key);
