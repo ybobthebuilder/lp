@@ -7,6 +7,16 @@ export async function POST(request: Request) {
 
   // TODO: Persist and deliver in production. Suggested integrations: Supabase + Resend.
   // UTM fields are accepted here so attribution can be stored with the lead.
-  console.log("lead_capture", { email, utm_source: body?.utm_source, utm_medium: body?.utm_medium, utm_campaign: body?.utm_campaign, utm_content: body?.utm_content });
+  const truncateUTM = (value: unknown): string | undefined => {
+    if (typeof value !== "string") return undefined;
+    return value.length > 100 ? undefined : value;
+  };
+
+  console.log("lead_capture", {
+    utm_source: truncateUTM(body?.utm_source),
+    utm_medium: truncateUTM(body?.utm_medium),
+    utm_campaign: truncateUTM(body?.utm_campaign),
+    utm_content: truncateUTM(body?.utm_content)
+  });
   return NextResponse.json({ ok: true });
 }
