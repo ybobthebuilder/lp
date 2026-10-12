@@ -7,7 +7,7 @@ describe("submitLead", () => {
   it("returns true when the API responds ok", async () => {
     const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }));
     expect(await submitLead(payload, fetchMock)).toBe(true);
-    expect(fetchMock).toHaveBeenCalledWith("/api/leads", expect.objectContaining({ method: "POST", body: JSON.stringify(payload) }));
+    expect(fetchMock).toHaveBeenCalledWith("/api/leads", expect.objectContaining({ method: "POST", headers: expect.objectContaining({ "Content-Type": "application/json" }), body: JSON.stringify(payload) }));
   });
 
   it("returns false when the API responds 400", async () => {
