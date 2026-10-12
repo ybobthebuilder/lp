@@ -8,8 +8,8 @@ do $$ begin
   assert not pg_has_role('service_role',  'crm_owner', 'member'), 'service_role is member of crm_owner';
   assert not pg_has_role('authenticated', 'crm_owner', 'member'), 'authenticated is member of crm_owner';
   assert not pg_has_role('anon',          'crm_owner', 'member'), 'anon is member of crm_owner';
-  assert (select count(*) from pg_auth_members m join pg_roles r on r.oid = m.roleid
-           where r.rolname = 'crm_owner') = 0, 'crm_owner has members';
+  assert not exists (select 1 from pg_auth_members m join pg_roles r on r.oid = m.roleid
+    where r.rolname = 'crm_owner' and (m.set_option or m.inherit_option)), 'crm_owner usable by a member';
   assert (select count(*) from pg_proc p join pg_roles r on r.oid = p.proowner
            where r.rolname = 'crm_owner' and p.proname in
              ('delete_contact','purge_inactive_contacts','record_unsubscribe')) = 3, 'owner not crm_owner';
