@@ -30,12 +30,16 @@ do $$ declare a uuid; begin
   assert (select count(*) from public.events where contact_id = a) = 2, 'events on new key';
 end $$;
 
--- Unchanged behavior: email of A + whatsapp of B -> resolves to A (email wins), no error.
-do $$ declare a uuid; b uuid; c uuid; begin
+-- Email of A + whatsapp of B: was "email wins" in T7e; since TASK-T7f
+-- (20261012060000_crm_capture_refuse_cross.sql) it is refused with LP001.
+do $$ declare a uuid; b uuid; refused boolean := false; begin
   a := public.capture_lead('t7e+a@example.com', '+5511900000020', 'v-test', null, '{}', 't7e-idem-a3');
   b := public.capture_lead('t7e+b@example.com', '+5511900000021', 'v-test', null, '{}', 't7e-idem-b1');
-  c := public.capture_lead('t7e+a@example.com', '+5511900000021', 'v-test', null, '{}', 't7e-idem-ab');
-  assert c = a and a <> b, 'email-wins rule changed';
+  begin
+    perform public.capture_lead('t7e+a@example.com', '+5511900000021', 'v-test', null, '{}', 't7e-idem-ab');
+  exception when sqlstate 'LP001' then refused := true;
+  end;
+  assert a <> b and refused, 'A+B not refused (T7f)';
 end $$;
 
 select 'T7e checks passed' as result;
