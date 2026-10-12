@@ -1,157 +1,115 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
+
+vi.mock("server-only", () => ({}));
+
 import { POST } from "../route";
+import { CONSENT_TEXT_VERSION } from "../../../consent-version";
+
+// Synthetic data only (ADR: no lead data in fixtures).
+const valid = {
+  email: "lead@example.com",
+  whatsapp: "+55 11 90000-0000",
+  consent_email: true,
+  consent_whatsapp: true,
+  idempotency_key: "11111111-2222-4333-8444-555555555555",
+  utm_source: "google"
+};
+const req = (body: unknown) => new Request("http://localhost/api/leads", { method: "POST", body: JSON.stringify(body) });
 
 describe("POST /api/leads", () => {
-  let consoleSpy: ReturnType<typeof vi.spyOn>;
-
+  const fetchMock = vi.fn();
   beforeEach(() => {
-    consoleSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    fetchMock.mockReset();
+    vi.stubGlobal("fetch", fetchMock);
+    vi.stubEnv("SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "test-secret");
   });
+  afterEach(() => { vi.unstubAllGlobals(); vi.unstubAllEnvs(); });
 
-  afterEach(() => {
-    vi.restoreAllMocks();
-  });
-
-  it("should reject invalid email", async () => {
-    const request = new Request("http://localhost/api/leads", {
-      method: "POST",
-      body: JSON.stringify({ email: "invalid" }),
+  it("calls capture_lead with the documented params and apikey header", async () => {
+    fetchMock.mockResolvedValue(new Response(JSON.stringify("uuid"), { status: 200 }));
+    const res = await POST(req(valid));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    const [url, init] = fetchMock.mock.calls[0];
+    expect(url).toBe("https://example.supabase.co/rest/v1/rpc/capture_lead");
+    expect(init.headers).toEqual({ "Content-Type": "application/json", apikey: "test-secret" });
+    expect(JSON.parse(init.body)).toEqual({
+      p_email: "lead@example.com",
+      p_whatsapp: "+55 11 90000-0000",
+      p_consent_text_version: "2026-10-12",
+      p_lead_magnet_slug: null,
+      p_utm: { utm_source: "google" },
+      p_idempotency_key: valid.idempotency_key
     });
-
-    const response = await POST(request);
-    expect(response.status).toBe(400);
   });
 
-  it("should not log email in lead capture", async () => {
-    const request = new Request("http://localhost/api/leads", {
-      method: "POST",
-      body: JSON.stringify({
-        email: "test@example.com",
-        utm_source: "google",
-      }),
-    });
-
-    const response = await POST(request);
-    expect(response.status).toBe(200);
-
-    const logCall = consoleSpy.mock.calls.find(
-      (call) => call[0] === "lead_capture"
-    );
-    expect(logCall).toBeDefined();
-
-    const logData = logCall?.[1] as Record<string, unknown>;
-    expect(logData.email).toBeUndefined();
-    expect(logData.utm_source).toBe("google");
+  it("returns the same response for an already registered email", async () => {
+    fetchMock.mockImplementation(async () => new Response(JSON.stringify("same-uuid"), { status: 200 }));
+    const first = await POST(req(valid));
+    const second = await POST(req({ ...valid, idempotency_key: "99999999-2222-4333-8444-555555555555" }));
+    expect(second.status).toBe(first.status);
+    expect(await second.json()).toEqual(await first.json());
   });
 
-  it("should truncate utm params longer than 100 chars", async () => {
-    const longUTM = "a".repeat(101);
-    const request = new Request("http://localhost/api/leads", {
-      method: "POST",
-      body: JSON.stringify({
-        email: "test@example.com",
-        utm_source: longUTM,
-        utm_medium: "short",
-      }),
-    });
-
-    const response = await POST(request);
-    expect(response.status).toBe(200);
-
-    const logCall = consoleSpy.mock.calls.find(
-      (call) => call[0] === "lead_capture"
-    );
-    expect(logCall).toBeDefined();
-    const logData = logCall?.[1] as Record<string, unknown>;
-
-    expect(logData.utm_source).toBeUndefined(); // truncated, so discarded
-    expect(logData.utm_medium).toBe("short"); // kept
+  it.each([
+    ["email", { email: "" }],
+    ["whatsapp", { whatsapp: "" }],
+    ["consent_email", { consent_email: false }],
+    ["consent_whatsapp", { consent_whatsapp: undefined }],
+    ["idempotency_key", { idempotency_key: "x" }]
+  ])("rejects missing/invalid %s without calling Supabase", async (_name, patch) => {
+    const res = await POST(req({ ...valid, ...patch }));
+    expect(res.status).toBe(400);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  it("should keep lead even if utm params are discarded", async () => {
-    const request = new Request("http://localhost/api/leads", {
-      method: "POST",
-      body: JSON.stringify({
-        email: "test@example.com",
-        utm_source: "a".repeat(101),
-        utm_medium: "a".repeat(101),
-        utm_campaign: "a".repeat(101),
-        utm_content: "a".repeat(101),
-      }),
-    });
-
-    const response = await POST(request);
-    expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ ok: true });
-  });
-  it("should reject invalid JSON body", async () => {
-    const request = new Request("http://localhost/api/leads", {
-      method: "POST",
-      body: "{not json",
-    });
-
-    const response = await POST(request);
-    expect(response.status).toBe(400);
+  it("returns a generic error when Supabase fails or env is missing", async () => {
+    fetchMock.mockResolvedValue(new Response("{}", { status: 500 }));
+    expect((await POST(req(valid))).status).toBe(502);
+    vi.stubEnv("SUPABASE_SECRET_KEY", "");
+    expect((await POST(req(valid))).status).toBe(502);
   });
 
-  it("should keep utm params with exactly 100 chars", async () => {
-    const utm100 = "a".repeat(100);
-    const request = new Request("http://localhost/api/leads", {
-      method: "POST",
-      body: JSON.stringify({ email: "test@example.com", utm_source: utm100 }),
-    });
+  it("privacy page shows the same version the code stores", () => {
+    expect(CONSENT_TEXT_VERSION).toBe("2026-10-12");
+    const page = readFileSync(join(__dirname, "../../../privacidade/page.tsx"), "utf8");
+    expect(page).toContain("Versão {CONSENT_TEXT_VERSION}, atualizada em {CONSENT_TEXT_UPDATED_AT}");
+  });
+  const utmOf = () => JSON.parse(fetchMock.mock.calls[0][1].body).p_utm;
+  const okRpc = () => fetchMock.mockResolvedValue(new Response(JSON.stringify("uuid"), { status: 200 }));
 
-    const response = await POST(request);
-    expect(response.status).toBe(200);
-
-    const logCall = consoleSpy.mock.calls.find(
-      (call) => call[0] === "lead_capture"
-    );
-    expect(logCall).toBeDefined();
-    const logData = logCall?.[1] as Record<string, unknown>;
-    expect(logData.utm_source).toBe(utm100);
+  it("rejects invalid JSON body", async () => {
+    const res = await POST(new Request("http://localhost/api/leads", { method: "POST", body: "{not json" }));
+    expect(res.status).toBe(400);
   });
 
-  it("should treat whitespace-only utm params as undefined", async () => {
-    const request = new Request("http://localhost/api/leads", {
-      method: "POST",
-      body: JSON.stringify({ email: "test@example.com", utm_source: "  " }),
-    });
-
-    const response = await POST(request);
-    expect(response.status).toBe(200);
-
-    const logCall = consoleSpy.mock.calls.find(
-      (call) => call[0] === "lead_capture"
-    );
-    expect(logCall).toBeDefined();
-    const logData = logCall?.[1] as Record<string, unknown>;
-    expect(logData.utm_source).toBeUndefined();
+  it("does not log lead data", async () => {
+    okRpc();
+    const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+    await POST(req(valid));
+    expect(JSON.stringify(logSpy.mock.calls)).not.toContain("lead@example.com");
+    logSpy.mockRestore();
   });
 
-  it("should treat empty utm params as undefined", async () => {
-    const request = new Request("http://localhost/api/leads", {
-      method: "POST",
-      body: JSON.stringify({
-        email: "test@example.com",
-        utm_source: "",
-        utm_medium: "",
-        utm_campaign: "",
-        utm_content: "",
-      }),
-    });
+  it("discards utm params longer than 100 chars and keeps the lead", async () => {
+    okRpc();
+    const res = await POST(req({ ...valid, utm_source: "a".repeat(101), utm_medium: "short" }));
+    expect(res.status).toBe(200);
+    expect(utmOf()).toEqual({ utm_medium: "short" });
+  });
 
-    const response = await POST(request);
-    expect(response.status).toBe(200);
+  it("keeps utm params with exactly 100 chars", async () => {
+    okRpc();
+    await POST(req({ ...valid, utm_source: "a".repeat(100) }));
+    expect(utmOf()).toEqual({ utm_source: "a".repeat(100) });
+  });
 
-    const logCall = consoleSpy.mock.calls.find(
-      (call) => call[0] === "lead_capture"
-    );
-    expect(logCall).toBeDefined();
-    const logData = logCall?.[1] as Record<string, unknown>;
-    expect(logData.utm_source).toBeUndefined();
-    expect(logData.utm_medium).toBeUndefined();
-    expect(logData.utm_campaign).toBeUndefined();
-    expect(logData.utm_content).toBeUndefined();
+  it("treats empty or whitespace-only utm params as absent", async () => {
+    okRpc();
+    await POST(req({ ...valid, utm_source: "  ", utm_medium: "", utm_campaign: "", utm_content: "" }));
+    expect(utmOf()).toEqual({});
   });
 });

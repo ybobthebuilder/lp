@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { CONSENT_TEXT_UPDATED_AT, CONSENT_TEXT_VERSION } from "../consent-version";
 
 export const metadata: Metadata = {
   title: "Política de privacidade",
@@ -10,6 +11,7 @@ export default function Privacidade() {
     <main className="mx-auto max-w-3xl px-6 py-16">
       <Link href="/" className="text-sm font-bold text-coral hover:underline">← Voltar</Link>
       <h1 className="mt-6 text-4xl font-black tracking-tight">Política de privacidade</h1>
+      <p className="mt-2 text-sm text-neutral-500">Versão {CONSENT_TEXT_VERSION}, atualizada em {CONSENT_TEXT_UPDATED_AT}</p>
       <div className="mt-8 space-y-6 leading-7 text-neutral-700">
         <section>
           <h2 className="text-xl font-black text-ink">Controlador</h2>
