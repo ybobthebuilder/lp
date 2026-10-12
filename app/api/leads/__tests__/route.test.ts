@@ -83,4 +83,55 @@ describe("POST /api/leads", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toEqual({ ok: true });
   });
+  it("should reject invalid JSON body", async () => {
+    const request = new Request("http://localhost/api/leads", {
+      method: "POST",
+      body: "{not json",
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(400);
+  });
+
+  it("should keep utm params with exactly 100 chars", async () => {
+    const utm100 = "a".repeat(100);
+    const request = new Request("http://localhost/api/leads", {
+      method: "POST",
+      body: JSON.stringify({ email: "test@example.com", utm_source: utm100 }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+
+    const logCall = consoleSpy.mock.calls.find(
+      (call) => call[0] === "lead_capture"
+    );
+    const logData = logCall?.[1] as Record<string, unknown>;
+    expect(logData.utm_source).toBe(utm100);
+  });
+
+  it("should treat empty utm params as undefined", async () => {
+    const request = new Request("http://localhost/api/leads", {
+      method: "POST",
+      body: JSON.stringify({
+        email: "test@example.com",
+        utm_source: "",
+        utm_medium: "",
+        utm_campaign: "",
+        utm_content: "",
+      }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+
+    const logCall = consoleSpy.mock.calls.find(
+      (call) => call[0] === "lead_capture"
+    );
+    const logData = logCall?.[1] as Record<string, unknown>;
+    expect(logData.utm_source).toBeUndefined();
+    expect(logData.utm_medium).toBeUndefined();
+    expect(logData.utm_campaign).toBeUndefined();
+    expect(logData.utm_content).toBeUndefined();
+  });
 });

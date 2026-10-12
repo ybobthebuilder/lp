@@ -8,7 +8,7 @@ export async function POST(request: Request) {
   // TODO: Persist and deliver in production. Suggested integrations: Supabase + Resend.
   // UTM fields are accepted here so attribution can be stored with the lead.
   const truncateUTM = (value: unknown): string | undefined => {
-    if (typeof value !== "string") return undefined;
+    if (typeof value !== "string" || value === "") return undefined;
     return value.length > 100 ? undefined : value;
   };
 
