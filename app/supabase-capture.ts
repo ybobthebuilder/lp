@@ -1,6 +1,6 @@
 import "server-only";
 
-// Calls public.capture_lead (supabase/migrations/20261012050000_crm_capture_idempotent.sql:14-21)
+// Calls public.capture_lead (latest definition: supabase/migrations/20261012060000_crm_capture_refuse_cross.sql)
 // via PostgREST. Env vars per docs/adr/0001-behavioral-crm.md:45 (server only).
 export type CaptureInput = {
   email: string;
@@ -10,14 +10,19 @@ export type CaptureInput = {
   idempotencyKey: string;
 };
 
+// "refused": capture_lead raised errcode LP001 (email and whatsapp belong to two different
+// contacts, TASK-T7f). Only that exact PostgREST error code maps here; anything else is "error".
+export type CaptureResult = "ok" | "refused" | "error";
+export const REFUSE_CROSS_CODE = "LP001";
+
 export async function captureLead(
   input: CaptureInput,
   fetchImpl: typeof fetch = fetch,
   env: Record<string, string | undefined> = process.env
-): Promise<boolean> {
+): Promise<CaptureResult> {
   const url = env.SUPABASE_URL;
   const key = env.SUPABASE_SECRET_KEY;
-  if (!url || !key) return false;
+  if (!url || !key) return "error";
   // ADR L46: the secret key goes in the apikey header, not Authorization: Bearer.
   const res = await fetchImpl(`${url.replace(/\/+$/, "")}/rest/v1/rpc/capture_lead`, {
     method: "POST",
@@ -32,5 +37,8 @@ export async function captureLead(
     }),
     cache: "no-store"
   });
-  return res.ok;
+  if (res.ok) return "ok";
+  const body: unknown = await res.json().catch(() => null);
+  const code = body && typeof body === "object" ? (body as { code?: unknown }).code : undefined;
+  return code === REFUSE_CROSS_CODE ? "refused" : "error";
 }

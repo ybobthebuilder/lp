@@ -16,6 +16,10 @@ export function normalizeWhatsapp(raw: string): string | null {
   return DB_WHATSAPP_RE.test(value) ? value : null;
 }
 
+// Generic invalid-input response. Also used when capture_lead refuses (LP001), so the
+// response never reveals that an email or number is already registered (TASK-T7f).
+const invalidRequest = () => NextResponse.json({ error: "Requisição inválida" }, { status: 400 });
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: Request) {
@@ -27,7 +31,7 @@ export async function POST(request: Request) {
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "E-mail inválido" }, { status: 400 });
   if (!whatsapp) return NextResponse.json({ error: "WhatsApp inválido" }, { status: 400 });
   if (body?.consent_email !== true || body?.consent_whatsapp !== true) return NextResponse.json({ error: "Consentimento obrigatório" }, { status: 400 });
-  if (!UUID.test(idempotencyKey)) return NextResponse.json({ error: "Requisição inválida" }, { status: 400 });
+  if (!UUID.test(idempotencyKey)) return invalidRequest();
 
   // UTM fields are accepted here so attribution can be stored with the lead.
   const normalizeUTM = (value: unknown): string | undefined => {
@@ -43,7 +47,8 @@ export async function POST(request: Request) {
   }
 
   // New and existing emails get the same response (no enumeration). No lead data is logged.
-  const ok = await captureLead({ email, whatsapp, textVersion: CONSENT_TEXT_VERSION, utm, idempotencyKey }).catch(() => false);
-  if (!ok) return NextResponse.json({ error: "Não foi possível enviar agora" }, { status: 502 });
+  const result = await captureLead({ email, whatsapp, textVersion: CONSENT_TEXT_VERSION, utm, idempotencyKey }).catch(() => "error" as const);
+  if (result === "refused") return invalidRequest();
+  if (result !== "ok") return NextResponse.json({ error: "Não foi possível enviar agora" }, { status: 502 });
   return NextResponse.json({ ok: true });
 }
