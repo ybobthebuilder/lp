@@ -36,9 +36,9 @@
 
 ### Retention and deletion
 - Contacts with 24 months without activity are removed. Activity = the `last_seen` column.
-- Mechanism that runs the 24-month removal: UNKNOWN.
+- Mechanism that runs the 24-month removal: `pg_cron` job, monthly (decided 2026-10-12, TASK-T7d).
 - Deletion = delete the contact and anonymize their events.
-- `consents` on deletion (PROPOSED, pending Fonseca): records are kept as proof of consent, with the link to the contact replaced by a random identifier with no connection to the contact (pseudonymized), and no email or phone.
+- `consents` on deletion (decided 2026-10-12, TASK-T7d): records are kept as proof of consent, with the link to the contact replaced by a random identifier with no connection to the contact (pseudonymized), and no email or phone.
 - No raw IP address is stored.
 
 ### Security

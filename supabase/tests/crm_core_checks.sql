@@ -45,7 +45,8 @@ do $$ begin
           where n.nspname = 'public' and c.relname in ('contacts','consents','events','lead_magnets')
             and c.relrowsecurity) = 4, 'RLS not enabled on all tables';
   assert (select count(*) from pg_policies where schemaname = 'public'
-          and tablename in ('contacts','consents','events','lead_magnets')) = 0, 'unexpected policies';
+          and tablename in ('contacts','consents','events','lead_magnets')
+          and roles <> '{crm_owner}') = 0, 'unexpected policies'; -- T7d adds crm_owner-only policies
   assert not exists (select 1 from information_schema.role_table_grants
           where table_schema = 'public' and grantee in ('anon','authenticated','PUBLIC')
             and table_name in ('contacts','consents','events','lead_magnets')), 'anon/authenticated grant found';
