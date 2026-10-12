@@ -2,7 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react";
 import { ArrowRight, Check, Download, Sparkles } from "lucide-react";
-import { submitLead } from "./lead-submit";
+import { submitLeadOnce } from "./lead-submit";
 
 function track(event: string, data: Record<string, string> = {}) {
   if (typeof window === "undefined") return;
@@ -20,6 +20,9 @@ function getUtm() {
 
 export default function Home() {
   const [email, setEmail] = useState("");
+  const [whatsapp, setWhatsapp] = useState("");
+  const [consentEmail, setConsentEmail] = useState(false);
+  const [consentWhatsapp, setConsentWhatsapp] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
@@ -32,8 +35,7 @@ export default function Home() {
     setError(false);
     track("form_submit_start");
     try {
-      // The API route is deliberately provider-neutral: connect it to Resend/Supabase in production.
-      const ok = await submitLead({ email, ...getUtm() });
+      const ok = await submitLeadOnce({ email, whatsapp, consent_email: consentEmail, consent_whatsapp: consentWhatsapp, ...getUtm() });
       if (ok) {
         setSubmitted(true);
         track("lead_captured", getUtm());
@@ -72,7 +74,7 @@ export default function Home() {
 
       <section className="mx-auto max-w-6xl px-6 py-24"><div className="grid gap-10 md:grid-cols-3"><div><p className="text-sm font-black uppercase tracking-widest text-coral">O problema</p><h2 className="mt-3 text-3xl font-black tracking-tight">Construir não é o primeiro passo.</h2></div><p className="leading-7 text-neutral-600">A vontade é abrir o editor e começar a codar. Mas uma semana de conversas pode poupar meses criando algo que ninguém pediu.</p><p className="leading-7 text-neutral-600">Este material é o caminho mais curto entre “tenho uma ideia” e “aprendi algo com usuários reais”.</p></div></section>
 
-      <section id="receba" className="bg-ink px-6 py-20 text-white"><div className="mx-auto max-w-3xl text-center"><p className="text-sm font-black uppercase tracking-widest text-coral">Seu próximo experimento começa aqui</p><h2 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Quer receber o checklist?</h2>{submitted ? <div className="mx-auto mt-10 max-w-md rounded-2xl bg-white p-7 text-left text-ink"><div className="flex items-center gap-3 text-lg font-black"><Check className="rounded-full bg-mint p-1" /> Tudo certo!</div><p className="mt-3 text-neutral-600">Seu material está pronto para baixar.</p><a href="/checklist-validacao-7-dias.pdf" download onClick={() => track("lead_magnet_download")} className="mt-5 inline-flex items-center font-bold text-coral hover:underline"><Download className="mr-2 h-4 w-4" /> Baixar o checklist</a></div> : <form onSubmit={submit} className="mx-auto mt-9 flex max-w-lg flex-col gap-3 sm:flex-row"><label htmlFor="email" className="sr-only">Seu melhor e-mail</label><input id="email" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu melhor e-mail" className="min-h-14 flex-1 rounded-full px-6 text-ink outline-none ring-coral focus:ring-2" /><button disabled={loading} className="min-h-14 rounded-full bg-coral px-7 font-black transition hover:bg-white hover:text-ink disabled:opacity-60">{loading ? "Enviando..." : "Quero receber"}</button></form>}{error && !submitted && <p role="alert" className="mt-4 text-sm font-bold text-coral">Não foi possível enviar agora. Tente de novo.</p>}<p className="mt-5 text-sm text-neutral-400">Ao enviar, você concorda em receber o material. Você pode sair quando quiser. <a href="/privacidade" className="underline hover:text-white">Política de privacidade</a>.</p></div></section>
+      <section id="receba" className="bg-ink px-6 py-20 text-white"><div className="mx-auto max-w-3xl text-center"><p className="text-sm font-black uppercase tracking-widest text-coral">Seu próximo experimento começa aqui</p><h2 className="mt-4 text-4xl font-black tracking-tight sm:text-5xl">Quer receber o checklist?</h2>{submitted ? <div className="mx-auto mt-10 max-w-md rounded-2xl bg-white p-7 text-left text-ink"><div className="flex items-center gap-3 text-lg font-black"><Check className="rounded-full bg-mint p-1" /> Tudo certo!</div><p className="mt-3 text-neutral-600">Seu material está pronto para baixar.</p><a href="/checklist-validacao-7-dias.pdf" download onClick={() => track("lead_magnet_download")} className="mt-5 inline-flex items-center font-bold text-coral hover:underline"><Download className="mr-2 h-4 w-4" /> Baixar o checklist</a></div> : <form onSubmit={submit} className="mx-auto mt-9 flex max-w-lg flex-col gap-3"><label htmlFor="email" className="sr-only">Seu melhor e-mail</label><input id="email" required type="email" value={email} onChange={(e) => setEmail(e.target.value)} placeholder="seu melhor e-mail" className="min-h-14 rounded-full px-6 text-ink outline-none ring-coral focus:ring-2" /><label htmlFor="whatsapp" className="sr-only">Seu WhatsApp</label><input id="whatsapp" required type="tel" autoComplete="tel" value={whatsapp} onChange={(e) => setWhatsapp(e.target.value)} placeholder="seu WhatsApp com DDD" className="min-h-14 rounded-full px-6 text-ink outline-none ring-coral focus:ring-2" /><label className="flex items-start gap-2 text-left text-sm text-neutral-300"><input type="checkbox" required checked={consentEmail} onChange={(e) => setConsentEmail(e.target.checked)} className="mt-1" /> Aceito receber conteúdos por e-mail.</label><label className="flex items-start gap-2 text-left text-sm text-neutral-300"><input type="checkbox" required checked={consentWhatsapp} onChange={(e) => setConsentWhatsapp(e.target.checked)} className="mt-1" /> Aceito receber alertas por WhatsApp.</label><button disabled={loading} className="min-h-14 rounded-full bg-coral px-7 font-black transition hover:bg-white hover:text-ink disabled:opacity-60">{loading ? "Enviando..." : "Quero receber"}</button></form>}{error && !submitted && <p role="alert" className="mt-4 text-sm font-bold text-coral">Não foi possível enviar agora. Tente de novo.</p>}<p className="mt-5 text-sm text-neutral-400">Ao enviar, você concorda em receber o material. Você pode sair quando quiser. <a href="/privacidade" className="underline hover:text-white">Política de privacidade</a>.</p></div></section>
 
       <footer className="mx-auto flex max-w-6xl flex-col gap-3 px-6 py-8 text-sm text-neutral-500 sm:flex-row sm:justify-between"><span>© 2026 build/in public</span><span>Uma jornada aberta, um experimento por vez.</span></footer>
     </main>
