@@ -144,4 +144,26 @@ describe("POST /api/leads", () => {
     await POST(req({ ...valid, utm_source: "  ", utm_medium: "", utm_campaign: "", utm_content: "" }));
     expect(utmOf()).toEqual({});
   });
+
+  it("honeypot filled: returns the normal success response and does not call capture_lead", async () => {
+    const res = await POST(req({ ...valid, hp_field: "http://spam.example" }));
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ ok: true });
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("honeypot filled with otherwise invalid data: still success, no call", async () => {
+    const res = await POST(req({ hp_field: "x" }));
+    expect(res.status).toBe(200);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("honeypot empty or whitespace: normal flow calls capture_lead", async () => {
+    okRpc();
+    for (const hp of ["", "   "]) {
+      const res = await POST(req({ ...valid, hp_field: hp }));
+      expect(res.status).toBe(200);
+    }
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+  });
 });
