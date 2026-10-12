@@ -20,7 +20,7 @@ export default function Privacidade() {
           <ul className="list-disc space-y-1 pl-6">
             <li>Entregar material educativo de apoio.</li>
             <li>Enviar conteúdos relacionados por email (1x por semana).</li>
-            <li>Se você autorizar, enviar alertas por WhatsApp. O bot de WhatsApp é usado para personalizar a experiência.</li>
+            <li>Enviar alertas por WhatsApp. O bot de WhatsApp é usado para personalizar a experiência.</li>
           </ul>
         </section>
         <section>
