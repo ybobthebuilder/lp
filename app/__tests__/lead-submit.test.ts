@@ -50,6 +50,19 @@ describe("submitLeadOnce", () => {
     expect(a).not.toBe(b);
   });
 
+  it("stops immediately on 4xx (one call)", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response("{}", { status: 400 }));
+    expect(await submitLeadOnce(payload, { fetchImpl: fetchMock })).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("retries 5xx reusing the same key", async () => {
+    const fetchMock = vi.fn().mockImplementation(async () => new Response("{}", { status: 503 }));
+    expect(await submitLeadOnce(payload, { fetchImpl: fetchMock, newKey: () => "k" })).toBe(false);
+    expect(fetchMock).toHaveBeenCalledTimes(3);
+    expect(fetchMock.mock.calls.map((c) => bodyOf(c).idempotency_key)).toEqual(["k", "k", "k"]);
+  });
+
   it("gives up after the configured attempts", async () => {
     const fetchMock = vi.fn().mockImplementation(async () => new Response("{}", { status: 500 }));
     expect(await submitLeadOnce(payload, { fetchImpl: fetchMock, attempts: 2 })).toBe(false);

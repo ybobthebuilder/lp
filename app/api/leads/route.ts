@@ -2,16 +2,30 @@ import { NextResponse } from "next/server";
 import { CONSENT_TEXT_VERSION } from "../../consent-version";
 import { captureLead } from "../../supabase-capture";
 
+// Same rule as the DB check on contacts.whatsapp (supabase/migrations/20261012030000_crm_core.sql:13).
+export const DB_WHATSAPP_RE = /^\+55\d{10,11}$/;
+
+// Strip non-digits; 10-11 digits get the 55 prefix; 12-13 digits starting with 55 are kept.
+export function normalizeWhatsapp(raw: string): string | null {
+  const digits = raw.replace(/\D/g, "");
+  let full: string;
+  if (digits.length === 10 || digits.length === 11) full = "55" + digits;
+  else if ((digits.length === 12 || digits.length === 13) && digits.startsWith("55")) full = digits;
+  else return null;
+  const value = "+" + full;
+  return DB_WHATSAPP_RE.test(value) ? value : null;
+}
+
 const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 export async function POST(request: Request) {
   const body = await request.json().catch(() => null);
   const str = (value: unknown) => (typeof value === "string" ? value.trim() : "");
   const email = str(body?.email);
-  const whatsapp = str(body?.whatsapp);
+  const whatsapp = normalizeWhatsapp(str(body?.whatsapp));
   const idempotencyKey = str(body?.idempotency_key);
   if (!email || !/^\S+@\S+\.\S+$/.test(email)) return NextResponse.json({ error: "E-mail inválido" }, { status: 400 });
-  if (!/^\+?[\d\s().-]{8,20}$/.test(whatsapp)) return NextResponse.json({ error: "WhatsApp inválido" }, { status: 400 });
+  if (!whatsapp) return NextResponse.json({ error: "WhatsApp inválido" }, { status: 400 });
   if (body?.consent_email !== true || body?.consent_whatsapp !== true) return NextResponse.json({ error: "Consentimento obrigatório" }, { status: 400 });
   if (!UUID.test(idempotencyKey)) return NextResponse.json({ error: "Requisição inválida" }, { status: 400 });
 
