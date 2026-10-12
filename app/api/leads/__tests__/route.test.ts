@@ -61,6 +61,7 @@ describe("POST /api/leads", () => {
     const logCall = consoleSpy.mock.calls.find(
       (call) => call[0] === "lead_capture"
     );
+    expect(logCall).toBeDefined();
     const logData = logCall?.[1] as Record<string, unknown>;
 
     expect(logData.utm_source).toBeUndefined(); // truncated, so discarded
@@ -106,8 +107,26 @@ describe("POST /api/leads", () => {
     const logCall = consoleSpy.mock.calls.find(
       (call) => call[0] === "lead_capture"
     );
+    expect(logCall).toBeDefined();
     const logData = logCall?.[1] as Record<string, unknown>;
     expect(logData.utm_source).toBe(utm100);
+  });
+
+  it("should treat whitespace-only utm params as undefined", async () => {
+    const request = new Request("http://localhost/api/leads", {
+      method: "POST",
+      body: JSON.stringify({ email: "test@example.com", utm_source: "  " }),
+    });
+
+    const response = await POST(request);
+    expect(response.status).toBe(200);
+
+    const logCall = consoleSpy.mock.calls.find(
+      (call) => call[0] === "lead_capture"
+    );
+    expect(logCall).toBeDefined();
+    const logData = logCall?.[1] as Record<string, unknown>;
+    expect(logData.utm_source).toBeUndefined();
   });
 
   it("should treat empty utm params as undefined", async () => {
@@ -128,6 +147,7 @@ describe("POST /api/leads", () => {
     const logCall = consoleSpy.mock.calls.find(
       (call) => call[0] === "lead_capture"
     );
+    expect(logCall).toBeDefined();
     const logData = logCall?.[1] as Record<string, unknown>;
     expect(logData.utm_source).toBeUndefined();
     expect(logData.utm_medium).toBeUndefined();
