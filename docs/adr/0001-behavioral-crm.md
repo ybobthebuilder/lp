@@ -14,6 +14,7 @@
 - Postgres on Supabase is the source of truth.
 - Tables: `contacts`, `consents`, `events`, `lead_magnets`.
 - `consents` and `events` are append-only (insert only, no update).
+- `events` is append-only except for anonymization on deletion, performed only by a server-side function.
 - `contacts` can be updated (`last_seen`, stage, score) and deleted (deletion requests).
 - Column definitions: UNKNOWN, defined in TASK-T7b (migration).
 
@@ -26,6 +27,7 @@
 ### Consent (LGPD)
 - Separate, explicit consent per channel: `email` and `whatsapp`. Nothing pre-checked.
 - Each consent stores the date/time and the `text_version` of the consent text shown.
+- Required consent (PROPOSED, pending Fonseca): `email` is required, because the lead magnet is delivered by email. `whatsapp` is optional; if a WhatsApp number is provided, its own consent is required.
 - The API rejects a submission without the required consent.
 
 ### Stages and score
@@ -34,8 +36,10 @@
 - Transition criteria and score values: UNKNOWN, to be defined by Fonseca.
 
 ### Retention and deletion
-- Contacts with 24 months without activity are removed.
+- Contacts with 24 months without activity are removed. Activity = the `last_seen` column.
+- Mechanism that runs the 24-month removal: UNKNOWN.
 - Deletion = delete the contact and anonymize their events.
+- `consents` on deletion (PROPOSED, pending Fonseca): records are kept as proof of consent, with the link to the contact replaced by an irreversible identifier (hash) and no email or phone.
 - No raw IP address is stored.
 
 ### Security
