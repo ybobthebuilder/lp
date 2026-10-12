@@ -13,8 +13,7 @@
 ### Storage
 - Postgres on Supabase is the source of truth.
 - Tables: `contacts`, `consents`, `events`, `lead_magnets`.
-- `consents` and `events` are append-only (insert only, no update).
-- `events` is append-only except for anonymization on deletion, performed only by a server-side function.
+- `consents` and `events` are append-only, except for pseudonymization/anonymization on deletion, performed only by a server-side function.
 - `contacts` can be updated (`last_seen`, stage, score) and deleted (deletion requests).
 - Column definitions: UNKNOWN, defined in TASK-T7b (migration).
 
@@ -39,7 +38,7 @@
 - Contacts with 24 months without activity are removed. Activity = the `last_seen` column.
 - Mechanism that runs the 24-month removal: UNKNOWN.
 - Deletion = delete the contact and anonymize their events.
-- `consents` on deletion (PROPOSED, pending Fonseca): records are kept as proof of consent, with the link to the contact replaced by an irreversible identifier (hash) and no email or phone.
+- `consents` on deletion (PROPOSED, pending Fonseca): records are kept as proof of consent, with the link to the contact replaced by a random identifier with no connection to the contact (pseudonymized), and no email or phone.
 - No raw IP address is stored.
 
 ### Security
