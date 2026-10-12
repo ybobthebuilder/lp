@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
+  metadataBase: new URL("https://unijungle.com"),
   title: "Valide sua ideia em 7 dias",
   description: "Um checklist prático para transformar uma ideia em um primeiro experimento real.",
   openGraph: {
