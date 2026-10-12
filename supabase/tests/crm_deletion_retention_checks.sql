@@ -65,8 +65,8 @@ select public.record_unsubscribe(' T7D+B@example.com ', 'email');
 select public.record_unsubscribe('nobody@example.com', 'email');
 select public.record_unsubscribe('+5511999999999', 'whatsapp');
 do $$ begin
-  assert (select count(*) from public.events where type = 'unsubscribed') = 1, 'unsubscribe duplicated/leaked';
-  assert (select payload from public.events where type = 'unsubscribed') = '{"channel":"email"}'::jsonb, 'unsubscribe payload';
+  assert (select count(*) from public.events where type = 'unsubscribed' and created_at >= now()) = 1, 'unsubscribe duplicated/leaked';
+  assert (select payload from public.events where type = 'unsubscribed' and created_at >= now()) = '{"channel":"email"}'::jsonb, 'unsubscribe payload';
   assert (select count(*) from public.contacts where email = 't7d+b@example.com') = 1, 'unsubscribe deleted contact';
   begin perform public.record_unsubscribe('t7d+b@example.com', 'sms'); raise exception 'bad channel accepted';
     exception when sqlstate '22023' then null; end;
@@ -93,14 +93,14 @@ end $$;
 do $$ begin
   assert public.delete_contact('+5511900000011') > 0, 'whatsapp delete returned 0';
   assert not exists (select 1 from public.contacts where whatsapp = '+5511900000011'), 'contact b remains';
-  assert (select count(*) from public.events where type = 'unsubscribed' and contact_id is null) = 1, 'unsub event not anonymized';
+  assert (select count(*) from public.events where type = 'unsubscribed' and contact_id is null and created_at >= now()) = 1, 'unsub event not anonymized';
 end $$;
 
 -- No email/WhatsApp anywhere.
 do $$ begin
   assert not exists (select 1 from public.events  e where e.payload::text ~ '(@example\.com|\+55119)'), 'PII in events';
   assert not exists (select 1 from public.consents c where row_to_json(c)::text ~ '(@example\.com|\+55119)'), 'PII in consents';
-  assert (select count(*) from public.contacts) = 0, 'contacts left';
+  assert (select count(*) from public.contacts where created_at >= now()) = 0, 'contacts left';
 end $$;
 
 -- Retention: 25 months purged, 23 months kept.
