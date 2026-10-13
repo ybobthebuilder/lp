@@ -4,12 +4,15 @@ module.exports = {
   theme: {
     extend: {
       colors: {
-        ink: "#171717",
-        cream: "#f8f6f1",
-        coral: "#ff725e",
-        mint: "#d9f5e9"
+        // Design system A — swatches from the Virunga reference.
+        canopy: "#264A31",
+        lava: "#F27D16",
+        fur: "#333333",
+        moss: "#6B854A",
+        night: "#07110c",
+        mist: "#e4eed6"
       },
-      boxShadow: { soft: "0 20px 70px rgba(23,23,23,.10)" }
+      boxShadow: { soft: "0 24px 80px rgba(7,17,12,.45)" }
     }
   },
   plugins: []
