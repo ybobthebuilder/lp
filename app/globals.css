@@ -2,9 +2,42 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: light; }
+/* Design system A
+   Jungle Canopy #264A31 · Lava Glow #F27D16 · Gorilla Fur #333333 · Mountain Moss #6B854A
+   night and mist are tints for field and type, not extra brand swatches. */
+:root {
+  color-scheme: dark;
+  --ds-a-canopy: #264a31;
+  --ds-a-lava: #f27d16;
+  --ds-a-fur: #333333;
+  --ds-a-moss: #6b854a;
+  --ds-a-night: #07110c;
+  --ds-a-mist: #e4eed6;
+}
 * { box-sizing: border-box; }
 html { scroll-behavior: smooth; }
-body { margin: 0; background: #f8f6f1; color: #171717; font-family: Arial, Helvetica, sans-serif; }
-::selection { background: #ff725e; color: #fff; }
-.grid-paper { background-image: linear-gradient(rgba(23,23,23,.045) 1px, transparent 1px), linear-gradient(90deg, rgba(23,23,23,.045) 1px, transparent 1px); background-size: 32px 32px; }
+body {
+  margin: 0;
+  background: var(--ds-a-night);
+  color: var(--ds-a-mist);
+  font-family: Arial, Helvetica, sans-serif;
+}
+::selection { background: var(--ds-a-lava); color: var(--ds-a-fur); }
+
+.canopy-field {
+  background:
+    radial-gradient(ellipse 70% 45% at 72% 0%, rgba(107, 133, 74, .55), transparent 62%),
+    radial-gradient(ellipse 42% 55% at 18% 18%, rgba(38, 74, 49, .9), transparent 70%),
+    linear-gradient(180deg, #10261a 0%, var(--ds-a-night) 78%);
+}
+.godrays {
+  background:
+    linear-gradient(180deg, rgba(228, 238, 214, .16), transparent 42%),
+    repeating-linear-gradient(
+      104deg,
+      transparent 0 46px,
+      rgba(228, 238, 214, .07) 46px 48px,
+      transparent 48px 92px
+    );
+  mask-image: linear-gradient(180deg, #000 0%, transparent 78%);
+}
